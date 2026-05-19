@@ -1,0 +1,135 @@
+# Sonatype Guide — Agentic Patches (AGP) Configuration
+# Learn more: https://guide.sonatype.com
+# File: agp.yml
+
+version: "1"
+
+# -----------------------------------------------------------------------------
+# Ignore: Paths and packages AGP should skip
+# -----------------------------------------------------------------------------
+ignore:
+  # Paths to exclude from dependency scanning
+  # Adjust these patterns for your project structure
+  paths:
+    - "**/node_modules/**"
+    - "**/dist/**"
+    - "**/build/**"
+    - "**/.git/**"
+    - "**/coverage/**"
+    # - "**/__pycache__/**"  # Uncomment for Python projects
+    # - "**/.venv/**"        # Uncomment for Python projects with venv
+    # - "**/vendor/**"       # Uncomment for vendored dependencies
+
+  # Package names to never upgrade (case-sensitive)
+  # Add packages that should remain at their current versions
+  packages: []
+  # packages:
+  #   - "legacy-critical-package"
+  #   - "pinned-dependency"
+
+# -----------------------------------------------------------------------------
+# Agent: AI agent for automated fix attempts
+# -----------------------------------------------------------------------------
+agent:
+  enabled: false
+  provider: anthropic  # Options: "anthropic" or "bedrock"
+  model: claude-sonnet-4-5
+  maxFixAttempts: 3
+  timeout: 30m
+
+# -----------------------------------------------------------------------------
+# Validation: Build validation after upgrades
+# -----------------------------------------------------------------------------
+validation:
+  enabled: true
+  # Commands to verify the upgrade didn't break anything
+  # These should match your project's actual build/test commands
+  commands:
+    - "npm install"
+    - "npm run build"
+    - "npm test"
+  timeout: 10m
+
+# -----------------------------------------------------------------------------
+# PR: Pull request settings
+# -----------------------------------------------------------------------------
+pr:
+  labels:
+    - dependencies
+    - automated
+    - agp
+  draft: false
+  titleTemplate: "chore(deps): {{.GroupName}}"
+  branchTemplate: "agp/{{.GroupID}}"
+  # Add reviewers by GitHub username
+  reviewers: []
+  # reviewers:
+  #   - your-username
+  #   - team-slug/team-name
+
+# -----------------------------------------------------------------------------
+# Limits: Rate limiting and safety controls
+# -----------------------------------------------------------------------------
+limits:
+  maxOpenPRs: 5          # Maximum simultaneous open PRs from AGP
+  maxPRsPerRun: 10       # Maximum PRs created in a single workflow run
+  waitPeriod:
+    major: 7d            # Wait period before creating PR for major version bumps
+    minor: 3d            # Wait period for minor version bumps
+    patch: 1d            # Wait period for patch version bumps
+
+# -----------------------------------------------------------------------------
+# Automerge: Auto-merge approved PRs
+# -----------------------------------------------------------------------------
+automerge:
+  enabled: false
+  method: squash  # Options: "squash", "merge", or "rebase"
+  # Enable automerge only after careful consideration
+  # Recommended: Keep disabled for production repositories
+
+# -----------------------------------------------------------------------------
+# Grouping: How to group dependency updates into PRs
+# -----------------------------------------------------------------------------
+grouping:
+  strategy: individual  # Options: "individual" (one PR per dep) or "consolidated" (grouped PRs)
+  rules: []
+  # Custom grouping rules (optional)
+  # rules:
+  #   - name: "dev-dependencies"
+  #     patterns:
+  #       - "@types/*"
+  #       - "eslint*"
+  #       - "prettier*"
+  #       - "jest*"
+  #   - name: "react-ecosystem"
+  #     patterns:
+  #       - "react*"
+  #       - "react-dom*"
+
+# -----------------------------------------------------------------------------
+# Projects: Monorepo per-project overrides
+# -----------------------------------------------------------------------------
+# Uncomment and configure if this is a monorepo with multiple sub-projects
+# Each project can have its own ecosystem and validation commands
+# projects:
+#   frontend:
+#     path: frontend
+#     ecosystem: npm
+#     validation:
+#       enabled: true
+#       commands:
+#         - "cd frontend && npm install"
+#         - "cd frontend && npm run build"
+#         - "cd frontend && npm test"
+#     ignore:
+#       packages:
+#         - "vite"
+#
+#   backend:
+#     path: backend
+#     ecosystem: maven
+#     validation:
+#       enabled: true
+#       commands:
+#         - "cd backend && mvn compile -q"
+#         - "cd backend && mvn test -q"

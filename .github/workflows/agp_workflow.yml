@@ -1,0 +1,108 @@
+# Sonatype Guide — Agentic Patches (AGP) Workflow
+# Learn more: https://guide.sonatype.com
+# File: .github/workflows/agp_workflow.yml
+
+name: "Sonatype Guide - Agentic Patches"
+
+on:
+  # Weekly automated scan every Monday at 09:00 UTC
+  schedule:
+    - cron: '0 9 * * 1'
+
+  # Manual trigger for on-demand scans
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Scan mode (full or specific vulnerabilities)'
+        required: false
+        default: 'full'
+        type: string
+      vulnerabilities:
+        description: 'Comma-separated list of vulnerability IDs to target (optional)'
+        required: false
+        type: string
+      verbose:
+        description: 'Enable verbose logging'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write  # Uncomment if using AWS Bedrock OIDC authentication
+
+concurrency:
+  group: "agp-workflow"
+  cancel-in-progress: false
+
+jobs:
+  agp:
+    runs-on: self-hosted
+    timeout-minutes: 60
+
+    steps:
+      # Step 1: Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: AWS OIDC credentials (uncomment if using AWS Bedrock)
+      # - name: Configure AWS credentials
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+      #     aws-region: us-east-1
+
+      # Step 3: Private registry authentication (uncomment if using private npm registry)
+      # - name: Configure private npm registry
+      #   run: |
+      #     echo "registry=https://your-registry.example.com" >> .npmrc
+      #     echo "//your-registry.example.com/:_authToken=${{ secrets.NPM_TOKEN }}" >> .npmrc
+
+      # Step 4: Run AGP scan and create PRs
+      - name: Sonatype Guide - Agentic Patches
+        uses: sonatype/agp-action@v1
+        with:
+          mode: ${{ inputs.mode || 'full' }}
+          vulnerabilities: ${{ inputs.vulnerabilities }}
+          create-pr: 'true'
+          dry-run: 'false'
+          verbose: ${{ inputs.verbose || 'false' }}
+          docker-registry: sonatype.repo.sonatype.app/docker-all
+          docker-username: ${{ secrets.DOCKER_USERNAME }}  # Uncomment for private Docker registry
+          docker-password: ${{ secrets.DOCKER_PASSWORD }}  # Uncomment for private Docker registry
+          # npmrc-content: ${{ secrets.NPMRC_CONTENT }}  # Uncomment for private npm registry
+          # maven-settings-xml: |  # Uncomment for Maven/Gradle projects
+          #   <settings>
+          #     <servers>
+          #       <server>
+          #         <id>private-repo</id>
+          #         <username>${env.MAVEN_USER}</username>
+          #         <password>${env.MAVEN_PASSWORD}</password>
+          #       </server>
+          #     </servers>
+          #     <mirrors>
+          #       <mirror>
+          #         <id>private-repo</id>
+          #         <url>https://your-maven-repo.example.com/maven2</url>
+          #         <mirrorOf>central</mirrorOf>
+          #       </mirror>
+          #     </mirrors>
+          #   </settings>
+          # pip-index-url: https://your-pypi.example.com/simple  # Uncomment for private PyPI
+          # pip-extra-index-url: https://pypi.org/simple  # Uncomment for private PyPI with fallback
+
+        env:
+          # Anthropic API key (required when using Anthropic directly)
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Comment out ANTHROPIC_API_KEY above and uncomment below if using AWS Bedrock:
+          # # ANTHROPIC_API_KEY is not needed for AWS Bedrock
+
+          # AGP API token for Guide dashboard tracking
+          # AGP_API_TOKEN: ${{ secrets.AGP_API_TOKEN }}
+          AGP_API_URL: https://api.guide-dev.sonatype.dev
+
+          # GitHub token for PR creation
+          GITHUB_TOKEN: ${{ github.token }}
+          # Uncomment below and comment above if your org restricts default GITHUB_TOKEN:
+          # GITHUB_TOKEN: ${{ secrets.AGP_GITHUB_TOKEN }}
